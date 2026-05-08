@@ -1,0 +1,583 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const isSupabaseConfigured = Boolean(
+  supabaseUrl &&
+  supabaseAnonKey &&
+  !supabaseUrl.includes('your-project-ref') &&
+  !supabaseAnonKey.includes('your-anon-public-key')
+);
+const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+const statusMap = {
+  lead: { text: '초기 상담', class: 'lead' },
+  progress: { text: '진행 중', class: 'progress' },
+  contracting: { text: '계약 진행 중', class: 'contracting' },
+  success: { text: '계약 완료', class: 'success' }
+};
+
+let salesData = [];
+let editingId = null;
+let currentPage = '대시보드';
+const editablePages = ['고객사 관리'];
+
+const elements = {
+  tableBody: document.getElementById('table-body'),
+  showLeadForm: document.getElementById('show-lead-form'),
+  leadModal: document.getElementById('lead-modal'),
+  leadForm: document.getElementById('lead-form'),
+  editModal: document.getElementById('edit-modal'),
+  editForm: document.getElementById('edit-form'),
+  dashboardSummary: document.getElementById('dashboard-summary'),
+  totalClients: document.getElementById('total-clients'),
+  activeLeads: document.getElementById('active-leads'),
+  successContracts: document.getElementById('success-contracts'),
+  pipelineLead: document.getElementById('pipeline-lead'),
+  pipelineProgress: document.getElementById('pipeline-progress'),
+  pipelineContracting: document.getElementById('pipeline-contracting'),
+  pipelineSuccess: document.getElementById('pipeline-success'),
+  headerTitle: document.querySelector('.header h1'),
+  titleLabel: document.querySelector('.table-header h2'),
+  dbStatus: document.getElementById('db-status'),
+  actionHeader: document.querySelector('.action-header'),
+  tableSection: document.querySelector('.table-section'),
+  closeLeadModal: document.getElementById('close-lead-modal'),
+  closeEditModal: document.getElementById('close-edit-modal'),
+  cancelNew: document.getElementById('cancel-new'),
+  cancelEdit: document.getElementById('cancel-edit'),
+  salesStatusSection: document.getElementById('sales-status-section'),
+  ssLeadCount: document.getElementById('ss-lead-count'),
+  ssProgressCount: document.getElementById('ss-progress-count'),
+  ssContractingCount: document.getElementById('ss-contracting-count'),
+  ssSuccessCount: document.getElementById('ss-success-count'),
+  ssPotentialList: document.getElementById('ss-potential-list'),
+  ssActivityList: document.getElementById('ss-activity-list'),
+  showActivityForm: document.getElementById('show-activity-form'),
+  activityModal: document.getElementById('activity-modal'),
+  closeActivityModal: document.getElementById('close-activity-modal'),
+  cancelActivity: document.getElementById('cancel-activity'),
+  activityForm: document.getElementById('activity-form'),
+  activityClient: document.getElementById('activity-client'),
+  activityDate: document.getElementById('activity-date'),
+  activityType: document.getElementById('activity-type'),
+  activityDesc: document.getElementById('activity-desc')
+};
+
+function createContactHTML(contact = {}) {
+  return `
+    <div class="contact-item" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; position: relative;">
+      <button type="button" class="remove-contact-btn" aria-label="담당자 삭제" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 18px; font-weight: bold;">&times;</button>
+      <div class="form-group">
+        <label>담당자명</label>
+        <input type="text" class="contact-name" required placeholder="예: 홍길동" value="${contact.name || ''}">
+      </div>
+      <div class="form-group">
+        <label>직책</label>
+        <input type="text" class="contact-title" placeholder="예: 팀장, 대표" value="${contact.title || ''}">
+      </div>
+      <div class="form-group">
+        <label>휴대폰</label>
+        <input type="tel" class="contact-mobile" placeholder="예: 010-1234-5678" value="${contact.mobile || ''}">
+      </div>
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" class="contact-email" placeholder="예: contact@company.com" value="${contact.email || ''}">
+      </div>
+      <div class="form-group full-width" style="grid-column: 1 / -1;">
+        <label>메모</label>
+        <textarea class="contact-memo" rows="2" placeholder="담당자 관련 특이사항이나 메모를 남겨주세요." style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; resize: vertical;">${contact.memo || ''}</textarea>
+      </div>
+    </div>
+  `;
+}
+
+function getContactsFromContainer(container) {
+  const contacts = [];
+  container.querySelectorAll('.contact-item').forEach(item => {
+    contacts.push({
+      name: item.querySelector('.contact-name').value.trim(),
+      title: item.querySelector('.contact-title').value.trim(),
+      mobile: item.querySelector('.contact-mobile').value.trim(),
+      email: item.querySelector('.contact-email').value.trim(),
+      memo: item.querySelector('.contact-memo').value.trim()
+    });
+  });
+  return contacts;
+}
+
+function hasSupabaseConfig() {
+  return Boolean(isSupabaseConfigured && supabase);
+}
+
+function setDbStatus(type, text) {
+  if (!elements.dbStatus) return;
+  elements.dbStatus.textContent = text;
+  elements.dbStatus.classList.remove('success', 'warning', 'error');
+  if (type) elements.dbStatus.classList.add(type);
+}
+
+function mapClient(item) {
+  return {
+    id: item.id,
+    company: item.company,
+    address: item.address || '',
+    companyPhone: item.company_phone || '',
+    contact: item.contact_person,
+    title: item.title || '',
+    memo: item.memo || '',
+    mobile: item.mobile_phone || '',
+    email: item.email || '',
+    contacts: item.contacts && item.contacts.length > 0 ? item.contacts : [{ name: item.contact_person || '', title: item.title || '', mobile: item.mobile_phone || '', email: item.email || '', memo: item.memo || '' }],
+    activities: item.activities || [],
+    date: item.registered_at ? new Date(item.registered_at).toISOString().split('T')[0] : '',
+    status: item.status
+  };
+}
+
+function initDummyData() {
+  salesData = [
+    { id: 1, company: '글로벌 아이티(주)', address: '서울 강남구 역삼동 123', companyPhone: '02-1234-5678', contacts: [{name: '김철수', title: '팀장', memo: 'VIP 고객사, 빠른 대응 필요', mobile: '010-1111-2222', email: 'kim@globalit.com'}], activities: [{ id: 1, date: '2023-10-10', type: '미팅', desc: '최종 계약서 날인 완료' }], date: '2023-10-01', status: 'success' },
+    { id: 2, company: '스타트업 팩토리', address: '서울 마포구 상암동 456', companyPhone: '02-8765-4321', contacts: [{name: '이영희', title: '매니저', memo: '', mobile: '010-3333-4444', email: 'lee@startupfactory.com'}], activities: [{ id: 2, date: '2023-10-16', type: '이메일', desc: '서비스 제안서 및 견적서 송부' }], date: '2023-10-15', status: 'progress' },
+    { id: 3, company: '제일물산', address: '인천 남동구 구월동 789', companyPhone: '032-999-8888', contacts: [{name: '박민수', title: '대리', memo: '첫 미팅 완료', mobile: '010-5555-6666', email: 'park@jeil.com'}], activities: [], date: '2023-10-20', status: 'lead' }
+  ];
+}
+
+function setPage(page) {
+  currentPage = page;
+  const title = page === '대시보드' ? '영업관리 대시보드' : page;
+  elements.headerTitle.textContent = title;
+  elements.titleLabel.textContent = `${title} 리스트`;
+
+  const canEdit = editablePages.includes(page);
+  elements.showLeadForm.classList.toggle('hidden', !canEdit);
+  editingId = null;
+  elements.leadModal.classList.add('hidden');
+  elements.editForm.reset();
+  elements.editModal.classList.add('hidden');
+
+  const isDashboard = page === '대시보드';
+  const isClientManage = page === '고객사 관리';
+  const isSalesStatus = page === '영업 현황';
+
+  document.querySelector('.dashboard-cards').style.display = isDashboard ? 'grid' : 'none';
+  elements.dashboardSummary.classList.toggle('hidden', !isDashboard);
+
+  if (elements.tableSection) {
+    elements.tableSection.style.display = (isDashboard || isClientManage) ? 'block' : 'none';
+  }
+  if (elements.salesStatusSection) {
+    elements.salesStatusSection.style.display = isSalesStatus ? 'flex' : 'none';
+  }
+
+  document.querySelectorAll('.nav-menu li').forEach(item => {
+    item.classList.toggle('active', item.textContent.trim() === page);
+  });
+
+  elements.actionHeader.classList.toggle('hidden', !canEdit);
+  updateDashboard();
+}
+
+
+function formatClientPayload(payload) {
+  return {
+    company: payload.company,
+    address: payload.address,
+    company_phone: payload.companyPhone,
+    contacts: payload.contacts,
+    contact_person: payload.contacts[0]?.name || '',
+    title: payload.contacts[0]?.title || '',
+    memo: payload.contacts[0]?.memo || '',
+    mobile_phone: payload.contacts[0]?.mobile || '',
+    email: payload.contacts[0]?.email || '',
+    activities: payload.activities || [],
+    status: payload.status
+  };
+}
+
+function updateSalesStatus() {
+  if (!elements.ssLeadCount) return;
+  let leadCount = 0, progressCount = 0, contractingCount = 0, successCount = 0;
+  const potentialList = [];
+  let allActivities = [];
+
+  salesData.forEach(client => {
+    if (client.status === 'lead') {
+      leadCount++;
+      potentialList.push(client);
+    }
+    if (client.status === 'progress') progressCount++;
+    if (client.status === 'contracting') contractingCount++;
+    if (client.status === 'success') successCount++;
+
+    if (client.activities && client.activities.length > 0) {
+      client.activities.forEach(act => {
+        allActivities.push({ ...act, company: client.company, clientId: client.id });
+      });
+    }
+  });
+
+  elements.ssLeadCount.textContent = `${leadCount}건`;
+  elements.ssProgressCount.textContent = `${progressCount}건`;
+  if (elements.ssContractingCount) elements.ssContractingCount.textContent = `${contractingCount}건`;
+  elements.ssSuccessCount.textContent = `${successCount}건`;
+
+  elements.ssPotentialList.innerHTML = potentialList.map(c => `
+    <tr>
+      <td><strong>${c.company}</strong></td>
+      <td>${c.contacts[0]?.name || '-'}</td>
+      <td>${c.date}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" style="text-align:center; color:#999;">잠재 고객사가 없습니다.</td></tr>';
+
+  allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
+  elements.ssActivityList.innerHTML = allActivities.length ? allActivities.map(act => `
+    <div style="padding: 15px; border: 1px solid #eee; border-radius: 8px; background: #fff;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="font-weight:bold; color:#2c3e50; font-size:14px;">${act.company}</span>
+        <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:3px 8px; border-radius:12px;">${act.type}</span>
+      </div>
+      <div style="font-size:13px; color:#555; margin-bottom:8px;">일자: ${act.date}</div>
+      <div style="font-size:13px; color:#333; white-space: pre-wrap; background:#f9f9f9; padding:10px; border-radius:4px;">${act.desc}</div>
+    </div>
+  `).join('') : '<div style="color:#999; padding:10px;">등록된 영업 활동이 없습니다.</div>';
+}
+
+function updateDashboard() {
+  elements.tableBody.innerHTML = '';
+
+  let leadCount = 0;
+  let progressCount = 0;
+  let contractingCount = 0;
+  let successCount = 0;
+
+  salesData.forEach(data => {
+    const row = document.createElement('tr');
+    row.dataset.rowId = data.id;
+    const statusInfo = statusMap[data.status] || statusMap.lead;
+
+    const contactsHTML = data.contacts.map(c => `
+      <div style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #eee;">
+        ${c.name} ${c.title ? `<span style="color:#666; font-size:12px;">(${c.title})</span>` : ''}
+        <span class="small-text">${c.mobile ? c.mobile + ' / ' : ''}${c.email}</span>
+      </div>
+    `).join('').replace(/<div[^>]*>([\s\S]*?)<\/div>$/, '<div style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">$1</div>');
+
+    if (editablePages.includes(currentPage)) {
+      row.innerHTML = `
+        <td><strong>${data.company}</strong><span class="small-text">${data.address}</span></td>
+        <td>${contactsHTML}</td>
+        <td>${data.companyPhone || '-'}</td>
+        <td>${data.date}</td>
+        <td><span class="status ${statusInfo.class}">${statusInfo.text}</span></td>
+        <td class="action-cell">
+          <button type="button" class="btn small secondary edit-btn">수정</button>
+          <button type="button" class="btn small danger delete-btn">삭제</button>
+        </td>
+      `;
+    } else {
+      row.innerHTML = `
+        <td><strong>${data.company}</strong><span class="small-text">${data.address}</span></td>
+        <td>${contactsHTML}</td>
+        <td>${data.companyPhone || '-'}</td>
+        <td>${data.date}</td>
+        <td><span class="status ${statusInfo.class}">${statusInfo.text}</span></td>
+      `;
+    }
+
+    elements.tableBody.appendChild(row);
+
+    if (data.status === 'lead') leadCount += 1;
+    if (data.status === 'progress') progressCount += 1;
+    if (data.status === 'contracting') contractingCount += 1;
+    if (data.status === 'success') successCount += 1;
+  });
+
+  elements.totalClients.innerText = `${salesData.length}곳`;
+  elements.activeLeads.innerText = `${progressCount + contractingCount}건`;
+  elements.successContracts.innerText = `${successCount}건`;
+  elements.pipelineLead.innerText = `${leadCount}건`;
+  elements.pipelineProgress.innerText = `${progressCount}건`;
+  if (elements.pipelineContracting) elements.pipelineContracting.innerText = `${contractingCount}건`;
+  elements.pipelineSuccess.innerText = `${successCount}건`;
+  updateSalesStatus();
+}
+
+async function loadClients() {
+  if (!hasSupabaseConfig()) {
+    setDbStatus('error', 'Supabase 설정 필요');
+    initDummyData();
+    updateDashboard();
+    return;
+  }
+
+  setDbStatus('warning', 'Supabase 연결 중...');
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .order('registered_at', { ascending: false });
+
+  if (error) {
+    console.error('Supabase load error:', error.message);
+    setDbStatus('error', 'Supabase 연결 실패');
+    initDummyData();
+  } else {
+    salesData = data.map(mapClient);
+    setDbStatus('success', 'Supabase 연결됨');
+  }
+  updateDashboard();
+}
+
+async function insertClient(payload) {
+  if (!hasSupabaseConfig()) {
+    salesData.unshift(payload);
+    updateDashboard();
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .insert([formatClientPayload(payload)])
+    .select();
+
+  if (error) {
+    console.error('Supabase insert error:', error.message);
+    alert('데이터 저장에 실패했습니다. 콘솔을 확인하세요.');
+    return;
+  }
+
+  salesData.unshift(mapClient(data[0]));
+  updateDashboard();
+}
+
+async function updateClient(id, payload) {
+  if (!hasSupabaseConfig()) {
+    const item = salesData.find(entry => entry.id === id);
+    Object.assign(item, payload);
+    updateDashboard();
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .update(formatClientPayload(payload))
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Supabase update error:', error.message);
+    alert('데이터 수정에 실패했습니다. 콘솔을 확인하세요.');
+    return;
+  }
+
+  const index = salesData.findIndex(entry => entry.id === id);
+  if (index !== -1) {
+    salesData[index] = mapClient(data[0]);
+    updateDashboard();
+  }
+}
+
+async function deleteClient(id) {
+  if (!hasSupabaseConfig()) {
+    salesData = salesData.filter(entry => entry.id !== id);
+    updateDashboard();
+    return;
+  }
+
+  const { error } = await supabase.from('clients').delete().eq('id', id);
+  if (error) {
+    console.error('Supabase delete error:', error.message);
+    alert('삭제에 실패했습니다. 콘솔을 확인하세요.');
+    return;
+  }
+
+  salesData = salesData.filter(entry => entry.id !== id);
+  updateDashboard();
+}
+
+function attachEvents() {
+  const menuList = document.querySelector('.nav-menu');
+  if (menuList) {
+    menuList.addEventListener('click', event => {
+      const menuItem = event.target.closest('li');
+      if (!menuItem || menuItem.classList.contains('disabled')) return;
+      setPage(menuItem.textContent.trim());
+    });
+  }
+
+  document.addEventListener('click', event => {
+    if (event.target.classList.contains('add-contact-btn')) {
+      const container = event.target.closest('.form-group').querySelector('.contacts-container');
+      container.insertAdjacentHTML('beforeend', createContactHTML());
+    }
+    if (event.target.classList.contains('remove-contact-btn')) {
+      const item = event.target.closest('.contact-item');
+      const container = item.parentElement;
+      if (container.children.length > 1) {
+        item.remove();
+      } else {
+        alert('최소 1명의 담당자가 필요합니다.');
+      }
+    }
+  });
+
+  elements.showLeadForm.addEventListener('click', () => {
+    elements.leadModal.classList.remove('hidden');
+    elements.showLeadForm.classList.add('hidden');
+    document.querySelector('#lead-contacts-group .contacts-container').innerHTML = createContactHTML();
+    document.getElementById('company-name').focus();
+  });
+
+  const closeLeadModal = () => {
+    elements.leadModal.classList.add('hidden');
+    elements.showLeadForm.classList.remove('hidden');
+    elements.leadForm.reset();
+  };
+  elements.cancelNew?.addEventListener('click', closeLeadModal);
+  elements.closeLeadModal?.addEventListener('click', closeLeadModal);
+
+  elements.leadForm.addEventListener('submit', async event => {
+    event.preventDefault();
+
+    const container = document.querySelector('#lead-contacts-group .contacts-container');
+    const contacts = getContactsFromContainer(container);
+
+    if (contacts.length === 0 || !contacts[0].name) {
+      alert('최소 1명의 담당자명을 입력해주세요.');
+      return;
+    }
+
+    const payload = {
+      company: document.getElementById('company-name').value.trim(),
+      address: document.getElementById('address').value.trim(),
+      companyPhone: document.getElementById('company-phone').value.trim(),
+      contacts: contacts,
+      status: document.getElementById('status').value,
+      activities: [],
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    if (!payload.company) {
+      alert('고객사명을 입력해주세요.');
+      return;
+    }
+
+    await insertClient(payload);
+    elements.leadForm.reset();
+    elements.leadModal.classList.add('hidden');
+    elements.showLeadForm.classList.remove('hidden');
+  });
+
+  elements.tableBody.addEventListener('click', async event => {
+    const row = event.target.closest('tr');
+    if (!row) return;
+    const id = Number(row.dataset.rowId);
+    const item = salesData.find(entry => entry.id === id);
+    if (!item) return;
+
+    if (event.target.closest('.edit-btn')) {
+      editingId = id;
+      document.getElementById('edit-company-name').value = item.company;
+      document.getElementById('edit-address').value = item.address;
+      document.getElementById('edit-company-phone').value = item.companyPhone;
+      document.getElementById('edit-status').value = item.status;
+      
+      const container = document.querySelector('#edit-contacts-group .contacts-container');
+      container.innerHTML = '';
+      if (item.contacts && item.contacts.length > 0) {
+        item.contacts.forEach(contact => {
+          container.insertAdjacentHTML('beforeend', createContactHTML(contact));
+        });
+      } else {
+        container.insertAdjacentHTML('beforeend', createContactHTML());
+      }
+      
+      elements.editModal.classList.remove('hidden');
+      document.getElementById('edit-company-name').focus();
+    }
+
+    if (event.target.closest('.delete-btn')) {
+      if (confirm('해당 고객사를 삭제하시겠습니까?')) {
+        await deleteClient(id);
+      }
+    }
+  });
+
+  elements.editForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (editingId === null) return;
+
+    const container = document.querySelector('#edit-contacts-group .contacts-container');
+    const contacts = getContactsFromContainer(container);
+
+    if (contacts.length === 0 || !contacts[0].name) {
+      alert('최소 1명의 담당자명을 입력해주세요.');
+      return;
+    }
+
+    const item = salesData.find(entry => entry.id === editingId);
+
+    const payload = {
+      company: document.getElementById('edit-company-name').value.trim(),
+      address: document.getElementById('edit-address').value.trim(),
+      companyPhone: document.getElementById('edit-company-phone').value.trim(),
+      contacts: contacts,
+      activities: item ? item.activities : [],
+      status: document.getElementById('edit-status').value
+    };
+
+    if (!payload.company) {
+      alert('고객사명을 입력해주세요.');
+      return;
+    }
+
+    await updateClient(editingId, payload);
+    elements.editModal.classList.add('hidden');
+    elements.editForm.reset();
+    editingId = null;
+  });
+
+  const closeEditModal = () => {
+    editingId = null;
+    elements.editModal.classList.add('hidden');
+    elements.editForm.reset();
+  };
+  elements.cancelEdit?.addEventListener('click', closeEditModal);
+  elements.closeEditModal?.addEventListener('click', closeEditModal);
+
+  // --- 활동 내역 등록 이벤트 ---
+  elements.showActivityForm?.addEventListener('click', () => {
+    elements.activityClient.innerHTML = salesData.map(c => `<option value="${c.id}">${c.company}</option>`).join('');
+    elements.activityDate.value = new Date().toISOString().split('T')[0];
+    elements.activityModal.classList.remove('hidden');
+  });
+
+  elements.closeActivityModal?.addEventListener('click', () => {
+    elements.activityModal.classList.add('hidden');
+    elements.activityForm.reset();
+  });
+
+  elements.cancelActivity?.addEventListener('click', () => {
+    elements.activityModal.classList.add('hidden');
+    elements.activityForm.reset();
+  });
+
+  elements.activityForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const clientId = Number(elements.activityClient.value);
+    const client = salesData.find(c => c.id === clientId);
+    if (!client) return;
+
+    const newActivity = { id: Date.now(), date: elements.activityDate.value, type: elements.activityType.value, desc: elements.activityDesc.value.trim() };
+    const payload = { ...client, companyPhone: client.companyPhone, activities: [...(client.activities || []), newActivity] };
+    
+    await updateClient(clientId, payload);
+    elements.activityModal.classList.add('hidden');
+    elements.activityForm.reset();
+  });
+}
+
+attachEvents();
+setPage(currentPage);
+setDbStatus(isSupabaseConfigured ? 'warning' : 'error', isSupabaseConfigured ? 'Supabase 연결 준비중...' : 'Supabase 설정 필요');
+loadClients();
