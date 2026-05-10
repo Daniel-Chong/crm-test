@@ -61,7 +61,23 @@ const elements = {
   activityClient: document.getElementById('activity-client'),
   activityDate: document.getElementById('activity-date'),
   activityType: document.getElementById('activity-type'),
-  activityDesc: document.getElementById('activity-desc')
+  activityDesc: document.getElementById('activity-desc'),
+  
+  // 로그인 및 사용자 관리 관련 요소 추가
+  loginScreen: document.getElementById('login-screen'),
+  loginForm: document.getElementById('login-form'),
+  loginEmail: document.getElementById('login-email'),
+  loginPassword: document.getElementById('login-password'),
+  loginError: document.getElementById('login-error'),
+  logoutBtn: document.getElementById('logout-btn'),
+  userManagementSection: document.getElementById('user-management-section'),
+  showUserForm: document.getElementById('show-user-form'),
+  userModal: document.getElementById('user-modal'),
+  closeUserModal: document.getElementById('close-user-modal'),
+  cancelUser: document.getElementById('cancel-user'),
+  userCreationForm: document.getElementById('user-creation-form'),
+  newUserEmail: document.getElementById('new-user-email'),
+  newUserPassword: document.getElementById('new-user-password')
 };
 
 function createContactHTML(contact = {}) {
@@ -159,6 +175,7 @@ function setPage(page) {
   const isDashboard = page === '대시보드';
   const isClientManage = page === '고객사 관리';
   const isSalesStatus = page === '영업 현황';
+  const isUserManage = page === '사용자 관리';
 
   document.querySelector('.dashboard-cards').style.display = isDashboard ? 'grid' : 'none';
   elements.dashboardSummary.classList.toggle('hidden', !isDashboard);
@@ -168,6 +185,9 @@ function setPage(page) {
   }
   if (elements.salesStatusSection) {
     elements.salesStatusSection.style.display = isSalesStatus ? 'flex' : 'none';
+  }
+  if (elements.userManagementSection) {
+    elements.userManagementSection.style.display = isUserManage ? 'flex' : 'none';
   }
 
   document.querySelectorAll('.nav-menu li').forEach(item => {
@@ -575,9 +595,89 @@ function attachEvents() {
     elements.activityModal.classList.add('hidden');
     elements.activityForm.reset();
   });
+
+  // --- 로그인 처리 이벤트 ---
+  elements.loginForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (elements.loginError) elements.loginError.style.display = 'none';
+    
+    const email = elements.loginEmail.value;
+    const password = elements.loginPassword.value;
+    
+    if (!hasSupabaseConfig()) {
+      if (elements.loginScreen) elements.loginScreen.style.display = 'none';
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (elements.loginError) {
+        elements.loginError.style.display = 'block';
+        elements.loginError.textContent = '로그인 실패: 이메일과 비밀번호를 확인해주세요.';
+      }
+    } else {
+      elements.loginForm.reset();
+    }
+  });
+
+  // --- 로그아웃 이벤트 ---
+  elements.logoutBtn?.addEventListener('click', async () => {
+    if (hasSupabaseConfig()) {
+      await supabase.auth.signOut();
+    } else {
+      if (elements.loginScreen) elements.loginScreen.style.display = 'flex';
+    }
+  });
+
+  // --- 사용자 생성 모달 이벤트 ---
+  elements.showUserForm?.addEventListener('click', () => {
+    elements.userModal?.classList.remove('hidden');
+  });
+
+  const closeUserModal = () => {
+    elements.userModal?.classList.add('hidden');
+    elements.userCreationForm?.reset();
+  };
+  elements.closeUserModal?.addEventListener('click', closeUserModal);
+  elements.cancelUser?.addEventListener('click', closeUserModal);
+
+  elements.userCreationForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!hasSupabaseConfig()) return;
+
+    const email = elements.newUserEmail.value;
+    const password = elements.newUserPassword.value;
+
+    // 프론트엔드에서 회원가입(signUp) API 호출
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    
+    if (error) {
+      alert('사용자 생성 실패: ' + error.message);
+    } else {
+      alert('사용자 생성이 완료되었습니다!');
+      closeUserModal();
+    }
+  });
+}
+
+function initAuth() {
+  if (!hasSupabaseConfig() || !elements.loginScreen) return;
+
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    elements.loginScreen.style.display = session ? 'none' : 'flex';
+  });
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') {
+      elements.loginScreen.style.display = 'none';
+    } else if (event === 'SIGNED_OUT') {
+      elements.loginScreen.style.display = 'flex';
+    }
+  });
 }
 
 attachEvents();
+initAuth();
 setPage(currentPage);
 setDbStatus(isSupabaseConfigured ? 'warning' : 'error', isSupabaseConfigured ? 'Supabase 연결 준비중...' : 'Supabase 설정 필요');
 loadClients();
