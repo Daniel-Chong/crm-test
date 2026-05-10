@@ -566,35 +566,94 @@ function attachEvents() {
   elements.cancelEdit?.addEventListener('click', closeEditModal);
   elements.closeEditModal?.addEventListener('click', closeEditModal);
 
-  // --- 활동 내역 등록 이벤트 ---
+  // --- 활동 내역 등록/수정/삭제 이벤트 ---
+  elements.ssActivityList?.addEventListener('click', async event => {
+    const btn = event.target.closest('button');
+    if (!btn) return;
+    
+    const item = btn.closest('div[data-act-id]');
+    if (!item) return;
+    
+    const actId = Number(item.dataset.actId);
+    const clientId = Number(item.dataset.clientId);
+    const client = salesData.find(c => c.id === clientId);
+    if (!client) return;
+
+    if (btn.classList.contains('delete-activity-btn')) {
+      if (confirm('해당 영업 활동을 삭제하시겠습니까?')) {
+        const updatedActivities = (client.activities || []).filter(a => a.id !== actId);
+        await updateClient(clientId, { ...client, companyPhone: client.companyPhone, activities: updatedActivities });
+      }
+    }
+
+    if (btn.classList.contains('edit-activity-btn')) {
+      const act = (client.activities || []).find(a => a.id === actId);
+      if (!act) return;
+
+      editingActivityId = actId;
+      editingActivityClientId = clientId;
+
+      elements.activityClient.innerHTML = `<option value="${clientId}">${client.company}</option>`;
+      elements.activityClient.value = clientId;
+      elements.activityClient.disabled = true;
+      
+      elements.activityDate.value = act.date;
+      elements.activityType.value = act.type;
+      elements.activityDesc.value = act.desc;
+      
+      if(elements.activityModalTitle) elements.activityModalTitle.textContent = '영업 활동 수정';
+      elements.activityModal.classList.remove('hidden');
+    }
+  });
+
   elements.showActivityForm?.addEventListener('click', () => {
+    editingActivityId = null;
+    editingActivityClientId = null;
+    elements.activityClient.disabled = false;
+    if(elements.activityModalTitle) elements.activityModalTitle.textContent = '영업 활동 등록';
+
     elements.activityClient.innerHTML = salesData.map(c => `<option value="${c.id}">${c.company}</option>`).join('');
     elements.activityDate.value = new Date().toISOString().split('T')[0];
     elements.activityModal.classList.remove('hidden');
   });
 
-  elements.closeActivityModal?.addEventListener('click', () => {
+  const closeActivityModal = () => {
     elements.activityModal.classList.add('hidden');
     elements.activityForm.reset();
-  });
+    editingActivityId = null;
+    editingActivityClientId = null;
+    elements.activityClient.disabled = false;
+  };
 
-  elements.cancelActivity?.addEventListener('click', () => {
-    elements.activityModal.classList.add('hidden');
-    elements.activityForm.reset();
-  });
+  elements.closeActivityModal?.addEventListener('click', closeActivityModal);
+  elements.cancelActivity?.addEventListener('click', closeActivityModal);
 
   elements.activityForm?.addEventListener('submit', async event => {
     event.preventDefault();
-    const clientId = Number(elements.activityClient.value);
+    const clientId = editingActivityClientId !== null ? editingActivityClientId : Number(elements.activityClient.value);
     const client = salesData.find(c => c.id === clientId);
     if (!client) return;
 
-    const newActivity = { id: Date.now(), date: elements.activityDate.value, type: elements.activityType.value, desc: elements.activityDesc.value.trim() };
-    const payload = { ...client, companyPhone: client.companyPhone, activities: [...(client.activities || []), newActivity] };
+    let updatedActivities = [...(client.activities || [])];
     
+    if (editingActivityId !== null) {
+      const index = updatedActivities.findIndex(a => a.id === editingActivityId);
+      if (index !== -1) {
+        updatedActivities[index] = {
+          ...updatedActivities[index],
+          date: elements.activityDate.value,
+          type: elements.activityType.value,
+          desc: elements.activityDesc.value.trim()
+        };
+      }
+    } else {
+      const newActivity = { id: Date.now(), date: elements.activityDate.value, type: elements.activityType.value, desc: elements.activityDesc.value.trim() };
+      updatedActivities.push(newActivity);
+    }
+
+    const payload = { ...client, companyPhone: client.companyPhone, activities: updatedActivities };
     await updateClient(clientId, payload);
-    elements.activityModal.classList.add('hidden');
-    elements.activityForm.reset();
+    closeActivityModal();
   });
 
   // --- 로그인 처리 이벤트 ---
