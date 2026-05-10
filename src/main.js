@@ -260,8 +260,8 @@ function updateSalesStatus() {
       <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
         <span style="font-weight:bold; color:#2c3e50; font-size:14px;">${act.company}</span>
         <div style="display:flex; gap:5px; align-items:center;">
-          <button type="button" class="btn small secondary edit-activity-btn" style="padding:2px 6px; font-size:11px; margin:0;">수정</button>
-          <button type="button" class="btn small danger delete-activity-btn" style="padding:2px 6px; font-size:11px; margin:0;">삭제</button>
+          <button type="button" class="btn small secondary edit-activity-btn" style="padding:4px 8px; font-size:12px; margin:0;">✏️ 수정</button>
+          <button type="button" class="btn small danger delete-activity-btn" style="padding:4px 8px; font-size:12px; margin:0;">🗑️ 삭제</button>
           <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:3px 8px; border-radius:12px; margin-left:4px;">${act.type}</span>
         </div>
       </div>
