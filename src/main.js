@@ -77,7 +77,8 @@ const elements = {
   cancelUser: document.getElementById('cancel-user'),
   userCreationForm: document.getElementById('user-creation-form'),
   newUserEmail: document.getElementById('new-user-email'),
-  newUserPassword: document.getElementById('new-user-password')
+  newUserPassword: document.getElementById('new-user-password'),
+  userTableBody: document.getElementById('user-table-body')
 };
 
 function createContactHTML(contact = {}) {
@@ -655,6 +656,13 @@ function attachEvents() {
       alert('사용자 생성 실패: ' + error.message);
     } else {
       alert('사용자 생성이 완료되었습니다!');
+      
+      // 화면 목록(Table)에 추가하여 즉시 반영된 것을 보여줌
+      const tr = document.createElement('tr');
+      const today = new Date().toISOString().split('T')[0];
+      tr.innerHTML = `<td>${email}</td><td>방금 전</td><td>${today}</td>`;
+      if (elements.userTableBody) elements.userTableBody.appendChild(tr);
+      
       closeUserModal();
     }
   });
@@ -681,3 +689,14 @@ initAuth();
 setPage(currentPage);
 setDbStatus(isSupabaseConfigured ? 'warning' : 'error', isSupabaseConfigured ? 'Supabase 연결 준비중...' : 'Supabase 설정 필요');
 loadClients();
+
+// 초기 사용자 목록 로드 (프론트엔드 UI 표시용)
+// 주의: 실제 서비스에서는 보안상 auth.users를 직접 조회할 수 없으므로 Edge Function이나 profiles 테이블을 사용해야 합니다.
+function loadUsers() {
+  if (elements.userTableBody) {
+    elements.userTableBody.innerHTML = `
+      <tr><td>admin@example.com (관리자)</td><td>최근</td><td>2024-01-01</td></tr>
+    `;
+  }
+}
+loadUsers();
