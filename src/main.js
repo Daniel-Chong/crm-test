@@ -248,11 +248,11 @@ function updateSalesStatus() {
 
   elements.ssPotentialList.innerHTML = potentialList.map(c => `
     <tr>
-      <td><strong>${c.company}</strong></td>
+      <td><strong>${c.company}</strong><br><span style="font-size:11px; color:#7f8c8d;">${c.companyPhone || ''}</span></td>
       <td>${c.contacts[0]?.name || '-'}</td>
       <td>${c.date}</td>
     </tr>
-  `).join('') || '<tr><td colspan="3" style="text-align:center; color:#999;">잠재 고객사가 없습니다.</td></tr>';
+  `).join('') || '<tr><td colspan="3" style="text-align:center; color:#999; padding: 20px;">📭 잠재 고객사가 없습니다.</td></tr>';
 
   allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
   elements.ssActivityList.innerHTML = allActivities.length ? allActivities.map(act => `
@@ -268,7 +268,7 @@ function updateSalesStatus() {
         <button type="button" class="btn small danger delete-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">🗑️ 삭제</button>
       </div>
     </div>
-  `).join('') : '<div style="color:#999; padding:10px;">등록된 영업 활동이 없습니다.</div>';
+  `).join('') : '<div style="text-align:center; color:#999; padding:20px;">📭 등록된 영업 활동이 없습니다.</div>';
 }
 
 function updateDashboard() {
