@@ -644,27 +644,40 @@ function attachEvents() {
 
   elements.userCreationForm?.addEventListener('submit', async event => {
     event.preventDefault();
-    if (!hasSupabaseConfig()) return;
 
     const email = elements.newUserEmail.value;
     const password = elements.newUserPassword.value;
 
-    // 프론트엔드에서 회원가입(signUp) API 호출
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    
-    if (error) {
-      alert('사용자 생성 실패: ' + error.message);
-    } else {
-      alert('사용자 생성이 완료되었습니다!');
+    if (hasSupabaseConfig()) {
+      // 관리자 세션 유지 트릭: 가입 전 현재 세션 백업
+      const { data: { session: oldSession } } = await supabase.auth.getSession();
+
+      // 프론트엔드에서 회원가입(signUp) API 호출
+      const { error } = await supabase.auth.signUp({ email, password });
       
-      // 화면 목록(Table)에 추가하여 즉시 반영된 것을 보여줌
-      const tr = document.createElement('tr');
-      const today = new Date().toISOString().split('T')[0];
-      tr.innerHTML = `<td>${email}</td><td>방금 전</td><td>${today}</td>`;
-      if (elements.userTableBody) elements.userTableBody.appendChild(tr);
-      
-      closeUserModal();
+      if (error) {
+        alert('사용자 생성 실패: ' + error.message);
+        return;
+      }
+
+      // 새롭게 가입된 유저의 세션으로 덮어씌워진 것을 기존 관리자 세션으로 복구 (자동 로그아웃 방지)
+      if (oldSession) {
+        await supabase.auth.setSession({
+          access_token: oldSession.access_token,
+          refresh_token: oldSession.refresh_token
+        });
+      }
     }
+
+    alert('사용자 생성이 완료되었습니다!');
+    
+    // 화면 목록(Table)에 추가하여 즉시 반영된 것을 보여줌
+    const tr = document.createElement('tr');
+    const today = new Date().toISOString().split('T')[0];
+    tr.innerHTML = `<td>${email}</td><td>방금 전</td><td>${today}</td>`;
+    if (elements.userTableBody) elements.userTableBody.appendChild(tr);
+    
+    closeUserModal();
   });
 }
 
