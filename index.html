@@ -451,6 +451,30 @@
         </div>
     </div>
 
+    <!-- 영업 활동 업데이트 추가 모달 -->
+    <div id="activity-update-modal" class="modal hidden" aria-hidden="true">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>영업 활동 업데이트</h3>
+                <button type="button" id="close-activity-update-modal" class="modal-close">×</button>
+            </div>
+            <form class="registration-form" id="activity-update-form" style="grid-template-columns: 1fr;">
+                <div class="form-group">
+                    <label for="activity-update-date">업데이트 일자</label>
+                    <input type="date" id="activity-update-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="activity-update-desc">업데이트 내용</label>
+                    <textarea id="activity-update-desc" rows="3" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; resize: vertical;" placeholder="추가 진행 사항이나 변경 사항을 입력하세요"></textarea>
+                </div>
+                <div class="form-group modal-actions">
+                    <button type="submit" class="btn">업데이트 저장</button>
+                    <button id="cancel-activity-update" type="button" class="btn secondary">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script type="module" src="./src/main.js"></script>
 </body>
 </html>

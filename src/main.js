@@ -21,6 +21,8 @@ let salesData = [];
 let editingId = null;
 let editingActivityId = null;
 let editingActivityClientId = null;
+let addingUpdateActivityId = null;
+let addingUpdateClientId = null;
 let currentPage = '대시보드';
 const editablePages = ['고객사 관리'];
 
@@ -65,6 +67,14 @@ const elements = {
   activityType: document.getElementById('activity-type'),
   activityDesc: document.getElementById('activity-desc'),
   activityModalTitle: document.querySelector('#activity-modal .modal-header h3'),
+  
+  // 영업 활동 업데이트 모달
+  activityUpdateModal: document.getElementById('activity-update-modal'),
+  closeActivityUpdateModal: document.getElementById('close-activity-update-modal'),
+  cancelActivityUpdate: document.getElementById('cancel-activity-update'),
+  activityUpdateForm: document.getElementById('activity-update-form'),
+  activityUpdateDate: document.getElementById('activity-update-date'),
+  activityUpdateDesc: document.getElementById('activity-update-desc'),
   
   // 로그인 및 사용자 관리 관련 요소 추가
   loginScreen: document.getElementById('login-screen'),
@@ -255,20 +265,36 @@ function updateSalesStatus() {
   `).join('') || '<tr><td colspan="3" style="text-align:center; color:#999; padding: 20px;">📭 잠재 고객사가 없습니다.</td></tr>';
 
   allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
-  elements.ssActivityList.innerHTML = allActivities.length ? allActivities.map(act => `
-    <div style="padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" data-act-id="${act.id}" data-client-id="${act.clientId}">
-      <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom:8px; flex-wrap: wrap; gap: 8px;">
-        <span style="font-weight:bold; color:#2c3e50; font-size:15px;">${act.company}</span>
-        <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:4px 10px; border-radius:12px;">${act.type}</span>
+  elements.ssActivityList.innerHTML = allActivities.length ? allActivities.map(act => {
+    let updatesHTML = '';
+    if (act.updates && act.updates.length > 0) {
+      updatesHTML = `<div style="margin-top: 10px; padding: 12px; background: #e8f5e9; border-left: 3px solid #27ae60; border-radius: 4px;">` + 
+        act.updates.map(up => `
+          <div style="margin-bottom: 8px; border-bottom: 1px dashed #c8e6c9; padding-bottom: 8px;">
+            <div style="font-size:12px; color:#2e7d32; margin-bottom: 4px;"><strong>📅 ${up.date}</strong></div>
+            <div style="font-size:13px; color:#333; white-space: pre-wrap;">${up.desc}</div>
+          </div>
+        `).join('').replace(/<div[^>]*>([\s\S]*?)<\/div>$/, '<div style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">$1</div>') +
+      `</div>`;
+    }
+
+    return `
+      <div style="padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" data-act-id="${act.id}" data-client-id="${act.clientId}">
+        <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom:8px; flex-wrap: wrap; gap: 8px;">
+          <span style="font-weight:bold; color:#2c3e50; font-size:15px;">${act.company}</span>
+          <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:4px 10px; border-radius:12px;">${act.type}</span>
+        </div>
+        <div style="font-size:13px; color:#555; margin-bottom:8px;"><strong>일자:</strong> ${act.date}</div>
+        <div style="font-size:13px; color:#333; white-space: pre-wrap; background:#f4f7f6; padding:12px; border-radius:6px; margin-bottom: 12px; border: 1px solid #eee;">${act.desc}</div>
+        ${updatesHTML}
+        <div style="display:flex; justify-content: flex-end; gap:8px; border-top: 1px dashed #eee; padding-top: 10px; margin-top: 10px;">
+          <button type="button" class="btn small secondary add-update-btn" style="padding:6px 12px; font-size:13px; margin:0; background-color: #27ae60; color: #fff;">➕ 업데이트</button>
+          <button type="button" class="btn small secondary edit-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">✏️ 수정</button>
+          <button type="button" class="btn small danger delete-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">🗑️ 삭제</button>
+        </div>
       </div>
-      <div style="font-size:13px; color:#555; margin-bottom:8px;"><strong>일자:</strong> ${act.date}</div>
-      <div style="font-size:13px; color:#333; white-space: pre-wrap; background:#f4f7f6; padding:12px; border-radius:6px; margin-bottom: 12px; border: 1px solid #eee;">${act.desc}</div>
-      <div style="display:flex; justify-content: flex-end; gap:8px; border-top: 1px dashed #eee; padding-top: 10px;">
-        <button type="button" class="btn small secondary edit-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">✏️ 수정</button>
-        <button type="button" class="btn small danger delete-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">🗑️ 삭제</button>
-      </div>
-    </div>
-  `).join('') : '<div style="text-align:center; color:#999; padding:20px;">📭 등록된 영업 활동이 없습니다.</div>';
+    `;
+  }).join('') : '<div style="text-align:center; color:#999; padding:20px;">📭 등록된 영업 활동이 없습니다.</div>';
 }
 
 function updateDashboard() {
@@ -611,6 +637,13 @@ function attachEvents() {
       if(elements.activityModalTitle) elements.activityModalTitle.textContent = '영업 활동 수정';
       elements.activityModal.classList.remove('hidden');
     }
+    
+    if (btn.classList.contains('add-update-btn')) {
+      addingUpdateActivityId = actId;
+      addingUpdateClientId = clientId;
+      elements.activityUpdateDate.value = new Date().toISOString().split('T')[0];
+      elements.activityUpdateModal?.classList.remove('hidden');
+    }
   });
 
   elements.showActivityForm?.addEventListener('click', () => {
@@ -661,6 +694,37 @@ function attachEvents() {
     const payload = { ...client, companyPhone: client.companyPhone, activities: updatedActivities };
     await updateClient(clientId, payload);
     closeActivityModal();
+  });
+
+  // --- 활동 업데이트(추가 기록) 저장/모달 이벤트 ---
+  const closeActivityUpdateModal = () => {
+    elements.activityUpdateModal?.classList.add('hidden');
+    elements.activityUpdateForm?.reset();
+    addingUpdateActivityId = null;
+    addingUpdateClientId = null;
+  };
+  
+  elements.closeActivityUpdateModal?.addEventListener('click', closeActivityUpdateModal);
+  elements.cancelActivityUpdate?.addEventListener('click', closeActivityUpdateModal);
+
+  elements.activityUpdateForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (addingUpdateActivityId === null || addingUpdateClientId === null) return;
+
+    const client = salesData.find(c => c.id === addingUpdateClientId);
+    if (!client) return;
+
+    const updatedActivities = [...(client.activities || [])];
+    const actIndex = updatedActivities.findIndex(a => a.id === addingUpdateActivityId);
+    
+    if (actIndex !== -1) {
+      const updates = [...(updatedActivities[actIndex].updates || [])];
+      updates.push({ id: Date.now(), date: elements.activityUpdateDate.value, desc: elements.activityUpdateDesc.value.trim() });
+      updatedActivities[actIndex] = { ...updatedActivities[actIndex], updates };
+      
+      await updateClient(addingUpdateClientId, { ...client, companyPhone: client.companyPhone, activities: updatedActivities });
+    }
+    closeActivityUpdateModal();
   });
 
   // --- 로그인 처리 이벤트 ---
