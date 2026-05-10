@@ -108,6 +108,41 @@
         .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
         .form-group.full-width { grid-column: 1 / -1; }
         .small-text { display: block; margin-top: 4px; color: #777; font-size: 12px; line-height: 1.4; }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
+            #dashboard-summary { grid-template-columns: repeat(2, 1fr) !important; }
+            #sales-status-section .dashboard-cards { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; }
+            .sidebar-header { padding: 15px; font-size: 20px; }
+            .nav-menu { display: flex; flex-direction: row; overflow-x: auto; padding: 0; white-space: nowrap; }
+            .nav-menu li { padding: 12px 20px; flex: 1; text-align: center; }
+            
+            .header { flex-direction: column; align-items: flex-start; gap: 15px; padding: 15px 20px; }
+            .db-status { align-self: flex-start; }
+            
+            .content { padding: 15px; }
+            .dashboard-cards { grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px; }
+            
+            .table-section { padding: 15px; }
+            .table-header { flex-direction: column !important; align-items: flex-start !important; }
+            table { display: block; overflow-x: auto; white-space: nowrap; }
+            
+            .registration-form { grid-template-columns: 1fr !important; }
+            
+            /* 영업 현황 2-column layout */
+            #sales-status-section > div:last-child { grid-template-columns: 1fr !important; }
+        }
+        
+        @media (max-width: 480px) {
+            #dashboard-summary, #sales-status-section .dashboard-cards { grid-template-columns: 1fr !important; }
+            .modal-content { padding: 20px; width: 95%; }
+        }
     </style>
 </head>
 <body>
@@ -352,6 +387,31 @@
                 <div class="form-group" style="display:flex; gap:10px; justify-content:flex-start; align-items:center; margin-top:10px;">
                     <button type="submit" class="btn">활동 저장</button>
                     <button id="cancel-activity" type="button" class="btn secondary">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 사용자 생성 모달 -->
+    <div id="user-modal" class="modal hidden" aria-hidden="true">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>새 사용자 생성</h3>
+                <button type="button" id="close-user-modal" class="modal-close">×</button>
+            </div>
+            <form class="registration-form" id="user-creation-form" style="grid-template-columns: 1fr;">
+                <div class="form-group">
+                    <label for="new-user-email">이메일</label>
+                    <input type="email" id="new-user-email" required placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="new-user-password">임시 비밀번호</label>
+                    <input type="password" id="new-user-password" required minlength="6" placeholder="6자리 이상">
+                    <span class="small-text">생성 후 사용자가 직접 변경하도록 안내해 주세요.</span>
+                </div>
+                <div class="form-group" style="display:flex; gap:10px; justify-content:flex-start; align-items:center; margin-top:10px;">
+                    <button type="submit" class="btn">생성</button>
+                    <button id="cancel-user" type="button" class="btn secondary">취소</button>
                 </div>
             </form>
         </div>
