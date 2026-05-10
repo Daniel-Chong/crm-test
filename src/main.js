@@ -19,6 +19,8 @@ const statusMap = {
 
 let salesData = [];
 let editingId = null;
+let editingActivityId = null;
+let editingActivityClientId = null;
 let currentPage = '대시보드';
 const editablePages = ['고객사 관리'];
 
@@ -62,6 +64,7 @@ const elements = {
   activityDate: document.getElementById('activity-date'),
   activityType: document.getElementById('activity-type'),
   activityDesc: document.getElementById('activity-desc'),
+  activityModalTitle: document.querySelector('#activity-modal .modal-header h3'),
   
   // 로그인 및 사용자 관리 관련 요소 추가
   loginScreen: document.getElementById('login-screen'),
@@ -253,10 +256,14 @@ function updateSalesStatus() {
 
   allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
   elements.ssActivityList.innerHTML = allActivities.length ? allActivities.map(act => `
-    <div style="padding: 15px; border: 1px solid #eee; border-radius: 8px; background: #fff;">
+    <div style="padding: 15px; border: 1px solid #eee; border-radius: 8px; background: #fff;" data-act-id="${act.id}" data-client-id="${act.clientId}">
       <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
         <span style="font-weight:bold; color:#2c3e50; font-size:14px;">${act.company}</span>
-        <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:3px 8px; border-radius:12px;">${act.type}</span>
+        <div style="display:flex; gap:5px; align-items:center;">
+          <button type="button" class="btn small secondary edit-activity-btn" style="padding:2px 6px; font-size:11px; margin:0;">수정</button>
+          <button type="button" class="btn small danger delete-activity-btn" style="padding:2px 6px; font-size:11px; margin:0;">삭제</button>
+          <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:3px 8px; border-radius:12px; margin-left:4px;">${act.type}</span>
+        </div>
       </div>
       <div style="font-size:13px; color:#555; margin-bottom:8px;">일자: ${act.date}</div>
       <div style="font-size:13px; color:#333; white-space: pre-wrap; background:#f9f9f9; padding:10px; border-radius:4px;">${act.desc}</div>
