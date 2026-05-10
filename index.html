@@ -109,6 +109,18 @@
         .form-group.full-width { grid-column: 1 / -1; }
         .small-text { display: block; margin-top: 4px; color: #777; font-size: 12px; line-height: 1.4; }
 
+        /* Contact Item */
+        .contact-item { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; position: relative; }
+        .remove-contact-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 18px; font-weight: bold; padding: 5px; }
+
+        /* Login Screen */
+        #login-screen { position: fixed; inset: 0; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .login-box { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px; }
+        .login-box h2 { text-align: center; margin-bottom: 20px; color: #2c3e50; }
+        .login-box .form-group { margin-bottom: 15px; }
+        .login-box .btn { width: 100%; padding: 12px; margin-top: 10px; font-size: 16px; }
+        #login-error { color: #e74c3c; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+
         /* Mobile Responsive */
         @media (max-width: 1024px) {
             .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
@@ -118,15 +130,19 @@
         
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; }
-            .sidebar-header { padding: 15px; font-size: 20px; }
-            .nav-menu { display: flex; flex-direction: row; overflow-x: auto; padding: 0; white-space: nowrap; }
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .sidebar-header { padding: 15px; font-size: 20px; text-align: left; }
+            .logout-container { position: absolute; top: 10px; right: 10px; padding: 0 !important; margin: 0 !important; width: auto !important; }
+            .logout-container button { width: auto !important; padding: 6px 12px; font-size: 12px; }
+            .nav-menu { display: flex; flex-direction: row; overflow-x: auto; padding: 0; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            .nav-menu::-webkit-scrollbar { display: none; }
             .nav-menu li { padding: 12px 20px; flex: 1; text-align: center; }
             
-            .header { flex-direction: column; align-items: flex-start; gap: 15px; padding: 15px 20px; }
-            .db-status { align-self: flex-start; }
+            .header { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 15px; }
+            .header h1 { font-size: 20px; }
+            .db-status { font-size: 11px; padding: 5px 10px; }
             
-            .content { padding: 15px; }
+            .content { padding: 10px; }
             .dashboard-cards { grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px; }
             
             .table-section { padding: 15px; }
@@ -134,6 +150,8 @@
             table { display: block; overflow-x: auto; white-space: nowrap; }
             
             .registration-form { grid-template-columns: 1fr !important; }
+            .contact-item { grid-template-columns: 1fr !important; }
+            .login-box { width: 90%; padding: 30px 20px; }
             
             /* 영업 현황 2-column layout */
             #sales-status-section > div:last-child { grid-template-columns: 1fr !important; }
@@ -141,11 +159,30 @@
         
         @media (max-width: 480px) {
             #dashboard-summary, #sales-status-section .dashboard-cards { grid-template-columns: 1fr !important; }
-            .modal-content { padding: 20px; width: 95%; }
+            .modal-content { padding: 20px 15px; width: 95%; }
         }
     </style>
 </head>
 <body>
+
+    <!-- 로그인 화면 -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>급식킹 CRM 로그인</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">이메일</label>
+                    <input type="email" id="login-email" required placeholder="admin@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">비밀번호</label>
+                    <input type="password" id="login-password" required placeholder="비밀번호를 입력하세요">
+                </div>
+                <button type="submit" class="btn">로그인</button>
+                <div id="login-error">이메일 또는 비밀번호를 확인해주세요.</div>
+            </form>
+        </div>
+    </div>
 
     <!-- Sidebar -->
     <aside class="sidebar">
@@ -154,8 +191,12 @@
             <li class="active">대시보드</li>
             <li>고객사 관리</li>
             <li>영업 현황</li>
+            <li>사용자 관리</li>
             <li class="disabled">통계 및 보고서</li>
         </ul>
+        <div class="logout-container" style="padding: 20px; margin-top: auto;">
+            <button id="logout-btn" class="btn secondary small" style="width: 100%;">로그아웃</button>
+        </div>
     </aside>
 
     <!-- Main Content -->
@@ -387,31 +428,6 @@
                 <div class="form-group" style="display:flex; gap:10px; justify-content:flex-start; align-items:center; margin-top:10px;">
                     <button type="submit" class="btn">활동 저장</button>
                     <button id="cancel-activity" type="button" class="btn secondary">취소</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- 사용자 생성 모달 -->
-    <div id="user-modal" class="modal hidden" aria-hidden="true">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h3>새 사용자 생성</h3>
-                <button type="button" id="close-user-modal" class="modal-close">×</button>
-            </div>
-            <form class="registration-form" id="user-creation-form" style="grid-template-columns: 1fr;">
-                <div class="form-group">
-                    <label for="new-user-email">이메일</label>
-                    <input type="email" id="new-user-email" required placeholder="user@example.com">
-                </div>
-                <div class="form-group">
-                    <label for="new-user-password">임시 비밀번호</label>
-                    <input type="password" id="new-user-password" required minlength="6" placeholder="6자리 이상">
-                    <span class="small-text">생성 후 사용자가 직접 변경하도록 안내해 주세요.</span>
-                </div>
-                <div class="form-group" style="display:flex; gap:10px; justify-content:flex-start; align-items:center; margin-top:10px;">
-                    <button type="submit" class="btn">생성</button>
-                    <button id="cancel-user" type="button" class="btn secondary">취소</button>
                 </div>
             </form>
         </div>

@@ -83,8 +83,8 @@ const elements = {
 
 function createContactHTML(contact = {}) {
   return `
-    <div class="contact-item" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; position: relative;">
-      <button type="button" class="remove-contact-btn" aria-label="담당자 삭제" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 18px; font-weight: bold;">&times;</button>
+    <div class="contact-item">
+      <button type="button" class="remove-contact-btn" aria-label="담당자 삭제">&times;</button>
       <div class="form-group">
         <label>담당자명</label>
         <input type="text" class="contact-name" required placeholder="예: 홍길동" value="${contact.name || ''}">
