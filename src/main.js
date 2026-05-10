@@ -256,17 +256,17 @@ function updateSalesStatus() {
 
   allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
   elements.ssActivityList.innerHTML = allActivities.length ? allActivities.map(act => `
-    <div style="padding: 15px; border: 1px solid #eee; border-radius: 8px; background: #fff;" data-act-id="${act.id}" data-client-id="${act.clientId}">
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="font-weight:bold; color:#2c3e50; font-size:14px;">${act.company}</span>
-        <div style="display:flex; gap:5px; align-items:center;">
-          <button type="button" class="btn small secondary edit-activity-btn" style="padding:4px 8px; font-size:12px; margin:0;">✏️ 수정</button>
-          <button type="button" class="btn small danger delete-activity-btn" style="padding:4px 8px; font-size:12px; margin:0;">🗑️ 삭제</button>
-          <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:3px 8px; border-radius:12px; margin-left:4px;">${act.type}</span>
-        </div>
+    <div style="padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" data-act-id="${act.id}" data-client-id="${act.clientId}">
+      <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom:8px; flex-wrap: wrap; gap: 8px;">
+        <span style="font-weight:bold; color:#2c3e50; font-size:15px;">${act.company}</span>
+        <span style="font-size:12px; font-weight:bold; color:#fff; background-color:#34495e; padding:4px 10px; border-radius:12px;">${act.type}</span>
       </div>
-      <div style="font-size:13px; color:#555; margin-bottom:8px;">일자: ${act.date}</div>
-      <div style="font-size:13px; color:#333; white-space: pre-wrap; background:#f9f9f9; padding:10px; border-radius:4px;">${act.desc}</div>
+      <div style="font-size:13px; color:#555; margin-bottom:8px;"><strong>일자:</strong> ${act.date}</div>
+      <div style="font-size:13px; color:#333; white-space: pre-wrap; background:#f4f7f6; padding:12px; border-radius:6px; margin-bottom: 12px; border: 1px solid #eee;">${act.desc}</div>
+      <div style="display:flex; justify-content: flex-end; gap:8px; border-top: 1px dashed #eee; padding-top: 10px;">
+        <button type="button" class="btn small secondary edit-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">✏️ 수정</button>
+        <button type="button" class="btn small danger delete-activity-btn" style="padding:6px 12px; font-size:13px; margin:0;">🗑️ 삭제</button>
+      </div>
     </div>
   `).join('') : '<div style="color:#999; padding:10px;">등록된 영업 활동이 없습니다.</div>';
 }
